@@ -5,7 +5,7 @@ LDLIBS =
 
 SRC=./src
 OBJ=./obj
-BIN=./bin
+BIN=./test
 INCLUDE=./include
 TETRIS = $(BIN)/tetris
 
