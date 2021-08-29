@@ -138,7 +138,14 @@ QueueFamilyIndices findQueueFamilies(VkPhysicalDevice *device) {
 		return indices;
 	}
 
+	VkBool32 presentSupport = false;
+
 	for (VkQueueFamilyProperties queueFamily; i < n; i++) {
+		vkGetPhysicalDeviceSurfaceSupportKHR(*device, i, Engine->surface, &presentSupport);
+		printf("[INFO] Surface present support: %d", presentSupport);
+		if (presentSupport)
+			indices.presentFamily = i;
+
 		queueFamily = queueFamilies[i];
 		/**
 		 * VkQueueFlagBits struct looks like this:
@@ -155,7 +162,7 @@ QueueFamilyIndices findQueueFamilies(VkPhysicalDevice *device) {
 		 * AND 001 (VK_QUEUE_GRAPHICS_BIT)
 		 *   = 001
 		 * 
-		 * TO-DO: make it work better, clean up the function, why the hell are we returning values ???
+		 * TO-DO: clean and expand
 		 */
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 			indices.graphicsFamily = i;
@@ -172,23 +179,45 @@ void createLogicalDevice() {
 	 * Can create all of the command buffers on mulitple threads and then submit them all at once on the main
 	 * thread with a single low-overhead call.
 	 */ 
-	if (Engine->physicalDevice == NULL){
-		printf("[ERROR] Engine has no physical device!");
-	}
 	QueueFamilyIndices indices = findQueueFamilies(&Engine->physicalDevice);
 
-
-	VkDeviceQueueCreateInfo info;
-	info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	info.queueFamilyIndex = indices.graphicsFamily;
-	info.queueCount = 1;
+	VkDeviceQueueCreateInfo queueInfo;
+	queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	queueInfo.queueFamilyIndex = indices.graphicsFamily;
+	queueInfo.queueCount = 1;
 
 	// Vulkan lets you assign priorities to queues between 0.0 and 1.0. Required even with 1 queue
 	float queuePriority = 1.0f;
-	info.pQueuePriorities = &queuePriority;
+	queueInfo.pQueuePriorities = &queuePriority;
 
 	// Specify the set of device features to use
+	// Imma leave it all to VK_FALSE (default) for now
 	VkPhysicalDeviceFeatures deviceFeatures;
+
+	VkDeviceCreateInfo createInfo;
+	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	createInfo.pQueueCreateInfos = &queueInfo;
+	createInfo.queueCreateInfoCount = 1;
+	createInfo.pEnabledFeatures = &deviceFeatures;
+
+	// Specify device specific extensions and validation layers
+	// enabledLayerCount and ppEnabledLayerNames fields of VkDeviceCreateInfo are ignored by up-to-date implementations
+	createInfo.enabledExtensionCount = 0;
+	if (enableValidationLayers) {
+		createInfo.enabledLayerCount = 1;
+		createInfo.ppEnabledLayerNames = validationLayers;
+	} else {
+		createInfo.enabledLayerCount = 0;
+	}
+
+	// Logical devices don't interact directly with instances	
+	if (vkCreateDevice(Engine->physicalDevice, &createInfo, NULL, &Engine->device) != VK_SUCCESS) {
+		printf("[ERROR] Failed to create logical device");
+	}
+	// Retrieves handles for each queue family
+	// Segfault
+	printf("[DEBUG] indices.graphicsFamily: %d", indices.graphicsFamily);
+	vkGetDeviceQueue(Engine->device, indices.graphicsFamily, 0, &Engine->graphicsQueue);
 }
 
 void dDisplayEngineProperties(void) {
@@ -278,7 +307,8 @@ void mainLoop() {
 }
 
 void cleanup() {
-        vkDestroyInstance(Engine->instance, NULL);
+        vkDestroyDevice(Engine->device, NULL);
+	vkDestroyInstance(Engine->instance, NULL);
 
         glfwDestroyWindow(Engine->window);
         

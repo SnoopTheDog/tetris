@@ -25,10 +25,13 @@ typedef struct App {
   VkInstance instance;
   VkPhysicalDevice physicalDevice;
   VkDevice device;
+  VkQueue graphicsQueue;
+  VkSurfaceKHR surface;
 } App;
 
 typedef struct QueueFamilyIndices{
 	uint32_t graphicsFamily;
+	uint32_t presentFamily;
 } QueueFamilyIndices;
 
 extern const uint32_t WIDTH;
